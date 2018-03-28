@@ -1,7 +1,7 @@
 {
   "name": "flow-vue-ssr-middleware",
   "version": "0.1.0",
-  "description": "",
+  "description": "基于flow-build，创建的支持vue服务端渲染（vue-ssr）的中间件",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,7 +10,17 @@
     "type": "git",
     "url": "git+https://github.com/ysk2014/node-flow-vue-ssr-middleware.git"
   },
-  "author": "",
+  "keywords": [
+    "vue-server-renderer",
+    "vue",
+    "flow-build",
+    "flow-vue-ssr-hook",
+    "express"
+  ],
+  "author": {
+    "name": "claus",
+    "url": "https://github.com/ysk2014"
+  },
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/ysk2014/node-flow-vue-ssr-middleware/issues"
