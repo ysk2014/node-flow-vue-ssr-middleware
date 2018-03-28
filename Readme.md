@@ -77,7 +77,7 @@ let instance = vueSSRMiddleware({
 
 ```
 
-### context
+#### context
 
 本模块继承了`vue-server-renderer`向模板里面插入数据的功能，本参数就是传入模板下的数据
 
