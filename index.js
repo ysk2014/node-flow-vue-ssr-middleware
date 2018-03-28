@@ -1,9 +1,10 @@
 const fs = require('fs')
 const path = require('path')
 const { createBundleRenderer } = require('vue-server-renderer');
+const tryRequire = require("./try-require");
 
 
-let renderer, options, devMiddleware, hotMiddleware;
+let renderer, options, devMiddleware, hotMiddleware, proxyMiddleware;
 
 let isReady = false;
 
@@ -11,7 +12,16 @@ module.exports = (option) => {
     options = Object.assign({}, option);
 
     if (!isReady && process.env.NODE_ENV != 'production') {
-        const SSRBuilder = require("flow-build");
+        const SSRBuilder = tryRequire("flow-build");
+        if (!SSRBuilder) {
+            console.log("Please npm install --save-dev flow-build");
+            throw new Error(
+                '[flow-vue-ssr-middleware] SSRBuilder: true requires flow-build ' +
+                  'as a peer dependency.'
+            );
+            return false;
+        }
+
         let flowConfig = require(path.resolve(process.cwd(),'./flow.config.js'));
         let builder = new SSRBuilder(flowConfig);
         builder.build(createRenderer).then(data => {
@@ -22,6 +32,20 @@ module.exports = (option) => {
             console.log(e)
             process.exit()
         });
+
+        if (flowConfig.dev.proxy) {
+            proxy = tryRequire("http-proxy-middleware");
+            if (!proxy) {
+                console.log("Please npm install --save-dev http-proxy-middleware");
+                throw new Error(
+                    '[flow-vue-ssr-middleware] proxy: true requires http-proxy-middleware ' +
+                      'as a peer dependency.'
+                );
+                return false;
+            }
+
+            proxyMiddleware = proxy(flowConfig.dev.proxy);
+        }
 
         return Object.assign(middleware, {
             openBrowser: builder.openBrowser
@@ -57,10 +81,14 @@ async function middleware(...ctx) {
             return middleware(req, res, next)
         }
 
+        if (proxyMiddleware) {
+            var hasNext3 = await proxyMiddleware(req, res, () => Promise.resolve(true));
+        }
         let hasNext1 = await hotMiddleware(req, res, () => Promise.resolve(true));
         let hasNext2 = await devMiddleware(req, res, () => Promise.resolve(true));
+        
 
-        if (hasNext1 && hasNext2) {
+        if (hasNext1 && hasNext2 && (!proxyMiddleware || (proxyMiddleware && hasNext3))) {
             let result = await render(req, res);
             if (isBoolean(result) && result) {
                 await next();

@@ -4,6 +4,7 @@
 
 - 本中间件只支持`express`框，不支持`koa2`，未来会对`koa2`进行支持
 - 本中间件是`flow-build`生态中的一个环节，如果想使用本中间件，请结合`flow-build`使用
+- 添加对`http-proxy-middleware`的支持，不过需要额外安装`http-proxy-middleware`，本中间件会自动读取`flow.config.js`文件下的proxy配置
 
 ### 安装
 
