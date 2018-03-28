@@ -4,7 +4,7 @@ const { createBundleRenderer } = require('vue-server-renderer');
 const tryRequire = require("./try-require");
 
 
-let renderer, options, devMiddleware, hotMiddleware, proxyMiddleware;
+let renderer, options, devMiddleware, hotMiddleware, httpProxyMiddleware, httpProxyMiddlewareOptions;
 
 let isReady = false;
 
@@ -34,8 +34,8 @@ module.exports = (option) => {
         });
 
         if (flowConfig.dev.proxy) {
-            proxy = tryRequire("http-proxy-middleware");
-            if (!proxy) {
+            httpProxyMiddleware = tryRequire("http-proxy-middleware");
+            if (!httpProxyMiddleware) {
                 console.log("Please npm install --save-dev http-proxy-middleware");
                 throw new Error(
                     '[flow-vue-ssr-middleware] proxy: true requires http-proxy-middleware ' +
@@ -44,7 +44,7 @@ module.exports = (option) => {
                 return false;
             }
 
-            proxyMiddleware = proxy(flowConfig.dev.proxy);
+            httpProxyMiddlewareOptions = flowConfig.dev.proxy;
         }
 
         return Object.assign(middleware, {
@@ -73,27 +73,36 @@ async function middleware(...ctx) {
         if (isBoolean(result) && result) {
             await next();
         } else {
-            await next(result);
+            if (options.error) {
+                options.error(result, req, res, next);
+            } else {
+                await next(result);
+            }
         }
     } else {
         if (!isReady) {
             await waitFor(1000);
             return middleware(req, res, next)
         }
-
-        if (proxyMiddleware) {
-            var hasNext3 = await proxyMiddleware(req, res, () => Promise.resolve(true));
-        }
+        
         let hasNext1 = await hotMiddleware(req, res, () => Promise.resolve(true));
         let hasNext2 = await devMiddleware(req, res, () => Promise.resolve(true));
-        
 
-        if (hasNext1 && hasNext2 && (!proxyMiddleware || (proxyMiddleware && hasNext3))) {
+        if (hasNext1 && hasNext2) {
+            
+            if (httpProxyMiddleware) {
+                await dealProxyMiddleware(req, res, next, httpProxyMiddlewareOptions);
+            }
+
             let result = await render(req, res);
             if (isBoolean(result) && result) {
                 await next();
             } else {
-                await next(result);
+                if (options.error) {
+                    options.error(result, req, res, next);
+                } else {
+                    await next(result);
+                }
             }
         }
     }
@@ -139,6 +148,87 @@ function render (req, res) {
         })
     })
     
+}
+
+/**
+ * Assume a proxy configuration specified as:
+ * proxy: {
+ *   'context': { options }
+ * }
+ * OR
+ * proxy: {
+ *   'context': 'target'
+ * }
+ */
+function dealProxyOptions(proxy) {
+    if (!Array.isArray(proxy)) {
+        proxy = Object.keys(proxy).map((context) => {
+            let proxyOptions;
+            // For backwards compatibility reasons.
+            const correctedContext = context.replace(/^\*$/, '**').replace(/\/\*$/, '');
+
+            if (typeof proxy[context] === 'string') {
+                proxyOptions = {
+                    context: correctedContext,
+                    target: proxy[context]
+                };
+            } else {
+                proxyOptions = Object.assign({}, proxy[context]);
+                proxyOptions.context = correctedContext;
+            }
+            proxyOptions.logLevel = proxyOptions.logLevel || 'warn';
+
+            return proxyOptions;
+        });
+    }
+    return proxy;
+}
+
+function dealProxyMiddleware(req, res, next, proxyoptions) {
+    proxyoptions = dealProxyOptions(proxyoptions);
+
+    const getProxyMiddleware = (proxyConfig) => {
+        const context = proxyConfig.context || proxyConfig.path;
+
+        if (proxyConfig.target) {
+          return httpProxyMiddleware(context, proxyConfig);
+        }
+    };
+
+    return Promise.all(proxyoptions.map((proxyConfigOrCallback) => {
+
+        let proxyConfig;
+        let proxyMiddleware;
+
+        if (typeof proxyConfigOrCallback === 'function') {
+            proxyConfig = proxyConfigOrCallback();
+        } else {
+            proxyConfig = proxyConfigOrCallback;
+        }
+
+        proxyMiddleware = getProxyMiddleware(proxyConfig);
+
+        return new Promise((resolve) => {
+            if (typeof proxyConfigOrCallback === 'function') {
+                const newProxyConfig = proxyConfigOrCallback();
+                if (newProxyConfig !== proxyConfig) {
+                    proxyConfig = newProxyConfig;
+                    proxyMiddleware = getProxyMiddleware(proxyConfig);
+                }
+            }
+            const bypass = typeof proxyConfig.bypass === 'function';
+            // eslint-disable-next-line
+            const bypassUrl = bypass && proxyConfig.bypass(req, res, proxyConfig) || false;
+
+            if (bypassUrl) {
+                req.url = bypassUrl;
+            } else if (proxyMiddleware) {
+                proxyMiddleware(req, res, next);
+            }
+
+            resolve(true)
+        })
+    }))
 }
 
 

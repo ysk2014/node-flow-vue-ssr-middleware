@@ -1,6 +1,6 @@
 {
   "name": "flow-vue-ssr-middleware",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "基于flow-build，创建的支持vue服务端渲染（vue-ssr）的中间件",
   "main": "index.js",
   "scripts": {
@@ -28,5 +28,8 @@
   "homepage": "https://github.com/ysk2014/node-flow-vue-ssr-middleware#readme",
   "peerDependencies": {
     "vue-server-renderer": "^2.0.0"
+  },
+  "dependencies": {
+    "resolve": "^1.6.0"
   }
 }
