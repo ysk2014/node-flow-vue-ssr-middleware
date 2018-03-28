@@ -109,7 +109,7 @@ html文件
 
 ### 方法
 
-### openBrowser
+#### openBrowser
 
 参数：host，port
 
