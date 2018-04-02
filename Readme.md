@@ -1,10 +1,17 @@
 ## 基于flow-build，创建的支持vue服务端渲染（vue-ssr）的中间件
 
+> 本中间件是对`vue-server-renderer`封装，实现vue在服务端渲染的功能
+
+### 功能
+
+- 服务端渲染vue组件
+
+
 ### 说明
 
 - 本中间件只支持`express`框，不支持`koa2`，未来会对`koa2`进行支持
 - 本中间件是`flow-build`生态中的一个环节，如果想使用本中间件，请结合`flow-build`使用
-- 添加对`http-proxy-middleware`的支持，不过需要额外安装`http-proxy-middleware`，本中间件会自动读取`flow.config.js`文件下的proxy配置
+
 
 ### 安装
 

@@ -4,7 +4,7 @@ const { createBundleRenderer } = require('vue-server-renderer');
 const tryRequire = require("./try-require");
 
 
-let renderer, options, devMiddleware, hotMiddleware, httpProxyMiddleware, httpProxyMiddlewareOptions;
+let renderer, options, devMiddleware, hotMiddleware;
 
 let isReady = false;
 
@@ -32,20 +32,6 @@ module.exports = (option) => {
             console.log(e)
             process.exit()
         });
-
-        if (flowConfig.dev.proxy) {
-            httpProxyMiddleware = tryRequire("http-proxy-middleware");
-            if (!httpProxyMiddleware) {
-                console.log("Please npm install --save-dev http-proxy-middleware");
-                throw new Error(
-                    '[flow-vue-ssr-middleware] proxy: true requires http-proxy-middleware ' +
-                      'as a peer dependency.'
-                );
-                return false;
-            }
-
-            httpProxyMiddlewareOptions = flowConfig.dev.proxy;
-        }
 
         return Object.assign(middleware, {
             openBrowser: builder.openBrowser
@@ -89,11 +75,6 @@ async function middleware(...ctx) {
         let hasNext2 = await devMiddleware(req, res, () => Promise.resolve(true));
 
         if (hasNext1 && hasNext2) {
-            
-            if (httpProxyMiddleware) {
-                await dealProxyMiddleware(req, res, next, httpProxyMiddlewareOptions);
-            }
-
             let result = await render(req, res);
             if (isBoolean(result) && result) {
                 await next();
@@ -148,87 +129,6 @@ function render (req, res) {
         })
     })
     
-}
-
-/**
- * Assume a proxy configuration specified as:
- * proxy: {
- *   'context': { options }
- * }
- * OR
- * proxy: {
- *   'context': 'target'
- * }
- */
-function dealProxyOptions(proxy) {
-    if (!Array.isArray(proxy)) {
-        proxy = Object.keys(proxy).map((context) => {
-            let proxyOptions;
-            // For backwards compatibility reasons.
-            const correctedContext = context.replace(/^\*$/, '**').replace(/\/\*$/, '');
-
-            if (typeof proxy[context] === 'string') {
-                proxyOptions = {
-                    context: correctedContext,
-                    target: proxy[context]
-                };
-            } else {
-                proxyOptions = Object.assign({}, proxy[context]);
-                proxyOptions.context = correctedContext;
-            }
-            proxyOptions.logLevel = proxyOptions.logLevel || 'warn';
-
-            return proxyOptions;
-        });
-    }
-    return proxy;
-}
-
-function dealProxyMiddleware(req, res, next, proxyoptions) {
-    proxyoptions = dealProxyOptions(proxyoptions);
-
-    const getProxyMiddleware = (proxyConfig) => {
-        const context = proxyConfig.context || proxyConfig.path;
-
-        if (proxyConfig.target) {
-          return httpProxyMiddleware(context, proxyConfig);
-        }
-    };
-
-    return Promise.all(proxyoptions.map((proxyConfigOrCallback) => {
-
-        let proxyConfig;
-        let proxyMiddleware;
-
-        if (typeof proxyConfigOrCallback === 'function') {
-            proxyConfig = proxyConfigOrCallback();
-        } else {
-            proxyConfig = proxyConfigOrCallback;
-        }
-
-        proxyMiddleware = getProxyMiddleware(proxyConfig);
-
-        return new Promise((resolve) => {
-            if (typeof proxyConfigOrCallback === 'function') {
-                const newProxyConfig = proxyConfigOrCallback();
-                if (newProxyConfig !== proxyConfig) {
-                    proxyConfig = newProxyConfig;
-                    proxyMiddleware = getProxyMiddleware(proxyConfig);
-                }
-            }
-            const bypass = typeof proxyConfig.bypass === 'function';
-            // eslint-disable-next-line
-            const bypassUrl = bypass && proxyConfig.bypass(req, res, proxyConfig) || false;
-
-            if (bypassUrl) {
-                req.url = bypassUrl;
-            } else if (proxyMiddleware) {
-                proxyMiddleware(req, res, next);
-            }
-
-            resolve(true)
-        })
-    }))
 }
 
 
