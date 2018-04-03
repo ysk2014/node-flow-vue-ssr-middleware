@@ -9,7 +9,20 @@ let renderer, options, devMiddleware, hotMiddleware;
 let isReady = false;
 
 module.exports = (option) => {
-    options = Object.assign({}, option);
+    options = Object.assign({
+        error: (err, req, res, next) => {
+            if (err.url) {
+                res.redirect(err.url)
+            } else if (err.code === 404) {
+                res.status(404).send('404 | Page Not Found')
+            } else {
+                // Render Error Page or Redirect
+                res.status(500).send('500 | Internal Server Error')
+                console.error(`error during render : ${req.url}`)
+                console.error(err.stack)
+            }
+        }
+    }, option);
 
     if (!isReady && process.env.NODE_ENV != 'production') {
         const SSRBuilder = tryRequire("flow-build");
@@ -59,11 +72,7 @@ async function middleware(...ctx) {
         if (isBoolean(result) && result) {
             await next();
         } else {
-            if (options.error) {
-                options.error(result, req, res, next);
-            } else {
-                await next(result);
-            }
+            options.error(result, req, res, next);
         }
     } else {
         if (!isReady) {
@@ -79,11 +88,7 @@ async function middleware(...ctx) {
             if (isBoolean(result) && result) {
                 await next();
             } else {
-                if (options.error) {
-                    options.error(result, req, res, next);
-                } else {
-                    await next(result);
-                }
+                options.error(result, req, res, next);
             }
         }
     }
