@@ -15,6 +15,8 @@ module.exports = (option) => {
                 res.redirect(err.url)
             } else if (err.code === 404) {
                 res.status(404).send('404 | Page Not Found')
+            } else if (req.url.indexOf(".ico") > 0) {
+                console.error(`404 | Page Not Found: ${req.url}`);
             } else {
                 // Render Error Page or Redirect
                 res.status(500).send('500 | Internal Server Error')
