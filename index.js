@@ -124,7 +124,7 @@ function render (req, res) {
         res.setHeader("Content-Type", "text/html")
 
         const context = Object.assign({
-            url: req.url
+            req: req
         }, options.context);
 
         renderer.renderToString(context, (err, html) => {
