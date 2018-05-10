@@ -10,6 +10,7 @@ let isReady = false;
 
 module.exports = (option) => {
     options = Object.assign({
+        output: './dist',
         error: (err, req, res, next) => {
             if (err.url) {
                 res.redirect(err.url)
@@ -21,13 +22,13 @@ module.exports = (option) => {
                 // Render Error Page or Redirect
                 res.status(500).send('500 | Internal Server Error')
                 console.error(`error during render : ${req.url}`)
-                console.error(err.stack)
+                console.error(err.stack || err)
             }
         }
     }, option);
 
     if (!isReady && process.env.NODE_ENV != 'production') {
-        const SSRBuilder = tryRequire("flow-build");
+        const SSRBuilder = tryRequire("@local/flow-build");
         if (!SSRBuilder) {
             console.log("Please npm install --save-dev flow-build");
             throw new Error(
@@ -99,7 +100,7 @@ async function middleware(...ctx) {
 
 function createRenderer(mfs = fs) {
     const template = fs.readFileSync(options.template, 'utf-8')
-    let distPath = path.resolve(process.cwd(), 'dist')
+    let distPath = path.resolve(process.cwd(), options.output);
 
     const bundle = JSON.parse(mfs.readFileSync(path.resolve(distPath, './server-bundle.json'), "utf-8"))
     const clientManifest = JSON.parse(mfs.readFileSync(path.resolve(distPath, './vue-ssr-client-manifest.json'), "utf-8"));
@@ -124,7 +125,8 @@ function render (req, res) {
         res.setHeader("Content-Type", "text/html")
 
         const context = Object.assign({
-            url: req.url
+            req: req,
+            res: res
         }, options.context);
 
         renderer.renderToString(context, (err, html) => {
