@@ -28,7 +28,7 @@ module.exports = (option) => {
     }, option);
 
     if (!isReady && process.env.NODE_ENV != 'production') {
-        const SSRBuilder = tryRequire("@local/flow-build");
+        const SSRBuilder = tryRequire("flow-build");
         if (!SSRBuilder) {
             console.log("Please npm install --save-dev flow-build");
             throw new Error(
