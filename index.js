@@ -83,8 +83,8 @@ async function middleware(...ctx) {
 
         let result = await render(req, res);
         if (isBoolean(result) && result) {
-            await next();
-        } else {
+            next();
+        } else if (!result.url) {
             options.error(result, req, res, next);
         }
     } else {
@@ -103,8 +103,8 @@ async function middleware(...ctx) {
         if (hasNext1 && hasNext2) {
             let result = await render(req, res);
             if (isBoolean(result) && result) {
-                await next();
-            } else {
+                next();
+            } else if (!result.url) {
                 options.error(result, req, res, next);
             }
         }
@@ -153,9 +153,8 @@ function createRenderer(mfs = fs) {
  */
 function render(req, res) {
     return new Promise(resolve => {
-        res.setHeader("Content-Type", "text/html");
-
-        const context = Object.assign(
+        
+        let context = Object.assign(
             {
                 req: req,
                 res: res
@@ -167,12 +166,13 @@ function render(req, res) {
             if (err) {
                 if (err.url) {
                     res.redirect(err.url);
-                } else {
-                    return resolve(err);
                 }
+                return resolve(err);
+            } else if (!res.headersSent && html){
+                res.setHeader("Content-Type", "text/html");
+                res.send(html);
             }
-            res.send(html);
-            resolve(true);
+            return resolve(true);
         });
     });
 }
