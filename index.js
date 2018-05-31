@@ -60,6 +60,7 @@ module.exports = option => {
             openBrowser: builder.openBrowser
         });
     } else {
+        createRenderer();
         return middleware;
     }
 };
@@ -79,8 +80,6 @@ async function middleware(...ctx) {
     }
 
     if (process.env.NODE_ENV === "production") {
-        createRenderer();
-
         let result = await render(req, res);
         if (isBoolean(result) && result) {
             next();
