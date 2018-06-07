@@ -11,15 +11,13 @@ module.exports = option => {
     options = Object.assign(
         {
             output: "./dist",
-            error: (err, req, res, next) => {
-                if (err.code === 404 && !res.headersSent) {
-                    res.status(404).send("404 | Page Not Found");
+            error: (err, req, res) => {
+                if (err.code === 404) {
+                    res && res.status(404).send("404 | Page Not Found");
                 } else if (req.url.indexOf(".ico") > 0) {
                     console.error(`404 | Page Not Found: ${req.url}`);
                 } else {
-                    if (!res.headersSent) {
-                        res.status(500).send("500 | Internal Server Error");
-                    }
+                    res && res.status(500).send("500 | Internal Server Error");
                     console.error(`error during render : ${req.url}`);
                     console.error(err.stack || err);
                 }
@@ -84,7 +82,11 @@ async function middleware(...ctx) {
         if (isBoolean(result) && result) {
             next();
         } else if (!result.url) {
-            options.error(result, req, res, next);
+            if (res.headersSent) {
+                options.error(result, req);
+            } else {
+                options.error(result, req, res);
+            }
         }
     } else {
         if (!isReady) {
@@ -104,7 +106,11 @@ async function middleware(...ctx) {
             if (isBoolean(result) && result) {
                 next();
             } else if (!result.url) {
-                options.error(result, req, res, next);
+                if (res.headersSent) {
+                    options.error(result, req);
+                } else {
+                    options.error(result, req, res);
+                }
             }
         }
     }

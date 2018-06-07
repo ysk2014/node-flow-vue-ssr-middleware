@@ -1,6 +1,6 @@
 {
   "name": "flow-vue-ssr-middleware",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "基于flow-build，创建的支持vue服务端渲染（vue-ssr）的中间件",
   "main": "index.js",
   "scripts": {

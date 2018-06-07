@@ -126,14 +126,12 @@ let instance = vueSSRMiddleware({
   context: {
     title: 'Vue HN 2.0', // default title
   },
-  error: (err, req, res, next)=> {
-      if (err.url) {
-        res.redirect(err.url)
-      } else if (err.code === 404) {
-        res.status(404).send('404 | Page Not Found')
+  error: (err, req, res)=> {
+      if (err.code === 404) {
+        res && res.status(404).send('404 | Page Not Found')
       } else {
         // Render Error Page or Redirect
-        res.status(500).send('500 | Internal Server Error')
+        rs && res.status(500).send('500 | Internal Server Error')
         console.error(`error during render : ${req.url}`)
         console.error(err.stack)
       }
