@@ -3,9 +3,7 @@ const path = require("path");
 const { createBundleRenderer } = require("vue-server-renderer");
 const tryRequire = require("./try-require");
 
-let renderer, options, devMiddleware, hotMiddleware;
-
-let isReady = false;
+let renderer, options;
 
 module.exports = async option => {
     options = Object.assign(
@@ -42,7 +40,7 @@ module.exports = async option => {
                 process.cwd(),
                 "./flow.config.js"
             ));
-            let builder = new SSRBuilder(flowConfig);
+            let builder = await new SSRBuilder(flowConfig);
             let { devMiddleware, hotMiddleware } = builder.build(createRenderer);
     
             return {
