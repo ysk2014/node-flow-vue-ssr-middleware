@@ -7,7 +7,7 @@ let renderer, options, devMiddleware, hotMiddleware;
 
 let isReady = false;
 
-module.exports = option => {
+module.exports = async option => {
     options = Object.assign(
         {
             output: "./dist",
@@ -26,7 +26,7 @@ module.exports = option => {
         option
     );
 
-    if (!isReady && process.env.NODE_ENV != "production") {
+    if (process.env.NODE_ENV != "production") {
         const SSRBuilder = tryRequire("flow-build");
         if (!SSRBuilder) {
             console.log("Please npm install --save-dev flow-build");
@@ -37,29 +37,30 @@ module.exports = option => {
             return false;
         }
 
-        let flowConfig = require(path.resolve(
-            process.cwd(),
-            "./flow.config.js"
-        ));
-        let builder = new SSRBuilder(flowConfig);
-        builder
-            .build(createRenderer)
-            .then(data => {
-                devMiddleware = data.devMiddleware;
-                hotMiddleware = data.hotMiddleware;
-                isReady = true;
-            })
-            .catch(e => {
-                console.log(e);
-                process.exit();
-            });
-
-        return Object.assign(middleware, {
-            openBrowser: builder.openBrowser
-        });
+        try {
+            let flowConfig = require(path.resolve(
+                process.cwd(),
+                "./flow.config.js"
+            ));
+            let builder = new SSRBuilder(flowConfig);
+            let { devMiddleware, hotMiddleware } = builder.build(createRenderer);
+    
+            return {
+                devMiddleware,
+                hotMiddleware,
+                middleware,
+                openBrowser: builder.openBrowser
+            };
+        } catch (error) {
+            console.error(error);
+            process.exit(1);
+        }
+        
     } else {
         createRenderer();
-        return middleware;
+        return {
+            middleware,
+        };
     }
 };
 
@@ -77,41 +78,14 @@ async function middleware(...ctx) {
         [req, res, next] = ctx;
     }
 
-    if (process.env.NODE_ENV === "production") {
-        let result = await render(req, res);
-        if (isBoolean(result) && result) {
-            next();
-        } else if (!result.url) {
-            if (res.headersSent) {
-                options.error(result, req);
-            } else {
-                options.error(result, req, res);
-            }
-        }
-    } else {
-        if (!isReady) {
-            await waitFor(1000);
-            return middleware(req, res, next);
-        }
-
-        let hasNext1 = await hotMiddleware(req, res, () =>
-            Promise.resolve(true)
-        );
-        let hasNext2 = await devMiddleware(req, res, () =>
-            Promise.resolve(true)
-        );
-
-        if (hasNext1 && hasNext2) {
-            let result = await render(req, res);
-            if (isBoolean(result) && result) {
-                next();
-            } else if (!result.url) {
-                if (res.headersSent) {
-                    options.error(result, req);
-                } else {
-                    options.error(result, req, res);
-                }
-            }
+    let result = await render(req, res);
+    if (isBoolean(result) && result) {
+        next();
+    } else if (!result.url) {
+        if (res.headersSent) {
+            options.error(result, req);
+        } else {
+            options.error(result, req, res);
         }
     }
 }
@@ -181,13 +155,7 @@ function render(req, res) {
         });
     });
 }
-/**
- * 延迟函数
- * @param {*} ms 
- */
-function waitFor(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms || 0));
-}
+
 /**
  * 判断是否是bool值
  * @param {*} v 
