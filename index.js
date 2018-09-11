@@ -12,8 +12,6 @@ module.exports = async option => {
             error: (err, req, res) => {
                 if (err.code === 404) {
                     res && res.status(404).send("404 | Page Not Found");
-                } else if (req.url.indexOf(".ico") > 0) {
-                    console.error(`404 | Page Not Found: ${req.url}`);
                 } else {
                     res && res.status(500).send("500 | Internal Server Error");
                     console.error(`error during render : ${req.url}`);
@@ -41,8 +39,10 @@ module.exports = async option => {
                 "./flow.config.js"
             ));
             let builder = await new SSRBuilder(flowConfig);
-            let { devMiddleware, hotMiddleware } = builder.build(createRenderer);
-    
+            let { devMiddleware, hotMiddleware } = builder.build(
+                createRenderer
+            );
+
             return {
                 devMiddleware,
                 hotMiddleware,
@@ -53,18 +53,17 @@ module.exports = async option => {
             console.error(error);
             process.exit(1);
         }
-        
     } else {
         createRenderer();
         return {
-            middleware,
+            middleware
         };
     }
 };
 
 /**
  * 中间件
- * @param {*} ctx 
+ * @param {*} ctx
  */
 async function middleware(...ctx) {
     let req, res, next;
@@ -74,6 +73,19 @@ async function middleware(...ctx) {
         next = ctx[1];
     } else {
         [req, res, next] = ctx;
+    }
+
+    if (req.method !== "GET" && req.method !== "HEAD") {
+        res.statusCode = 405;
+        res.setHeader("Allow", "GET, HEAD");
+        res.setHeader("Content-Length", "0");
+        res.end();
+        return;
+    }
+
+    if (req.path.indexOf(".") > 0) {
+        res.redirect("/404?from=" + decodeURIComponent(req.url));
+        return;
     }
 
     let result = await render(req, res);
@@ -90,7 +102,7 @@ async function middleware(...ctx) {
 
 /**
  * 创建renderer实例
- * @param {*} mfs 
+ * @param {*} mfs
  */
 function createRenderer(mfs = fs) {
     const template = fs.readFileSync(options.template, "utf-8");
@@ -125,12 +137,11 @@ function createRenderer(mfs = fs) {
 }
 /**
  * 渲染页面
- * @param {*} req 
- * @param {*} res 
+ * @param {*} req
+ * @param {*} res
  */
 function render(req, res) {
     return new Promise(resolve => {
-        
         let context = Object.assign(
             {
                 req: req,
@@ -145,7 +156,7 @@ function render(req, res) {
                     res.redirect(err.url);
                 }
                 return resolve(err);
-            } else if (!res.headersSent && html){
+            } else if (!res.headersSent && html) {
                 res.setHeader("Content-Type", "text/html");
                 res.send(html);
             }
@@ -156,7 +167,7 @@ function render(req, res) {
 
 /**
  * 判断是否是bool值
- * @param {*} v 
+ * @param {*} v
  */
 function isBoolean(v) {
     return typeof v === "boolean";
