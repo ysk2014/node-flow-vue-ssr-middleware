@@ -38,8 +38,8 @@ module.exports = async option => {
                 process.cwd(),
                 "./flow.config.js"
             ));
-            let builder = await new SSRBuilder(flowConfig);
-            let { devMiddleware, hotMiddleware } = builder.build(
+            let builder = new SSRBuilder(flowConfig);
+            let { devMiddleware, hotMiddleware } = await builder.build(
                 createRenderer
             );
 
